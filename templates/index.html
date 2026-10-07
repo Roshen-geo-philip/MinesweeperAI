@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Minesweeper - Logic-Based AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="masthead">
+    <h1>MINESWEEPER</h1>
+    <p class="sub">Logic-Based AI</p>
+  </header>
+
+  <main class="shell">
+    <section class="play" aria-label="Game">
+      <div class="hud">
+        <div class="stat">
+          <span class="stat-label">Mines remaining</span>
+          <span id="mines-left" class="stat-value">10</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Game status</span>
+          <span id="status" class="stat-value">Ready</span>
+        </div>
+        <button id="new-game" type="button" class="btn primary">New game</button>
+      </div>
+
+      <div class="settings">
+        <label>Rows <input id="rows" type="number" min="{{ min_size }}" max="{{ max_size }}" value="9"></label>
+        <label>Columns <input id="cols" type="number" min="{{ min_size }}" max="{{ max_size }}" value="9"></label>
+        <label>Mines <input id="mines" type="number" min="1" value="10"></label>
+      </div>
+
+      <div class="toolbar">
+        <button id="analyze" type="button" class="btn">Analyze Board</button>
+        <button id="apply-safe" type="button" class="btn" disabled>Apply Safe Moves</button>
+        <button id="ai-move" type="button" class="btn">&#129302; AI MOVE</button>
+      </div>
+      <div class="options">
+        <label><input id="allow-guessing" type="checkbox"> Allow guessing</label>
+        <label><input id="show-reasoning" type="checkbox"> Show reasoning</label>
+        <label><input id="flag-mode" type="checkbox"> Flag mode (for touch screens)</label>
+      </div>
+
+      <p id="message" class="message" role="status" aria-live="polite">Click any cell to start. Right-click (or press F) to flag.</p>
+
+      <div class="board-wrap">
+        <div id="board" class="board" aria-label="Minesweeper board"></div>
+      </div>
+
+      <ul class="legend" aria-label="Legend">
+        <li><span class="swatch s-mine">&#10005;</span> Red = Mine proved by logic</li>
+        <li><span class="swatch s-safe">&#10003;</span> Green = Safe proved by logic</li>
+        <li><span class="swatch s-unknown">?</span> Yellow = Cannot determine</li>
+      </ul>
+    </section>
+
+    <aside class="side">
+      <section id="reasoning-panel" class="panel" hidden>
+        <h2>Reasoning</h2>
+        <div id="reasoning-body"></div>
+      </section>
+      <section class="panel">
+        <h2>Activity</h2>
+        <ul id="log" class="log"><li class="muted">Nothing yet.</li></ul>
+      </section>
+    </aside>
+  </main>
+
+  <section class="explainer">
+    <h2>How the AI Thinks</h2>
+    <ol>
+      <li>Read revealed numbers</li>
+      <li>Convert them into logical constraints</li>
+      <li>Ask Z3 whether each hidden cell must be a mine</li>
+      <li>Ask Z3 whether each hidden cell must be safe</li>
+      <li>Mark cells as MINE, SAFE, or UNKNOWN</li>
+    </ol>
+
+    <div class="example">
+      <p><strong>Example.</strong> Clue = 1</p>
+      <div class="mini" aria-label="Clue 1 with neighbours A, B and C">
+        <span class="mini-cell clue">1</span>
+        <span class="mini-cell">A</span>
+        <span class="mini-cell">B</span>
+        <span class="mini-cell">C</span>
+      </div>
+      <p>Neighbours: [A] [B] [C]. If A and B are known SAFE, then C must be a MINE.</p>
+      <div class="mini" aria-label="Result: A and B safe, C mine">
+        <span class="mini-cell clue">1</span>
+        <span class="mini-cell s-safe">&#10003;</span>
+        <span class="mini-cell s-safe">&#10003;</span>
+        <span class="mini-cell s-mine">&#10005;</span>
+      </div>
+    </div>
+
+    <p>The agent does not guess. Each cell becomes a true/false variable, each number becomes a
+      constraint ("exactly 1 of these neighbours is a mine"), and Z3 uses <em>logical entailment</em>:
+      to prove C is a mine it assumes C is safe and shows that this contradicts the clues. If no
+      such contradiction appears in either direction, the cell stays UNKNOWN.</p>
+  </section>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

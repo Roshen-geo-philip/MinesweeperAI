@@ -1,0 +1,193 @@
+/* Minesweeper - Logic-Based AI
+   Palette: cool slate paper, navy ink, and three solver colours
+   (red = mine, green = safe, yellow = unknown) that mean the same thing everywhere. */
+
+:root {
+  --bg: #e4eaf2;
+  --panel: #f5f8fc;
+  --ink: #16233b;
+  --muted: #55637c;
+  --line: #c3cedd;
+  --covered: #aebcd1;
+  --covered-hi: #cbd6e6;
+  --covered-lo: #8798b3;
+  --covered-hover: #b9c7db;
+  --revealed: #f9fbfe;
+  --mine: #d64545;
+  --mine-bg: #f7caca;
+  --mine-ink: #8f1d1d;
+  --safe: #2f9e5b;
+  --safe-bg: #c9ecd7;
+  --safe-ink: #17623a;
+  --unk: #e3b012;
+  --unk-bg: #f7e5a6;
+  --unk-ink: #6b4f00;
+  --sans: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.5;
+}
+
+/* ---------- masthead ---------- */
+.masthead { text-align: center; padding: 28px 16px 8px; }
+.masthead h1 {
+  margin: 0;
+  font-family: "Bahnschrift", "Avenir Next Condensed", "Arial Narrow", var(--sans);
+  font-size: clamp(2rem, 6vw, 3.2rem);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.sub { margin: 0; color: var(--muted); font-size: 1.05rem; }
+
+/* ---------- layout ---------- */
+.shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 860px) { .shell { grid-template-columns: minmax(0, 1fr); } }
+
+.play, .panel, .explainer {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+}
+.side { display: grid; gap: 16px; }
+h2 { margin: 0 0 8px; font-size: 1.1rem; }
+
+/* ---------- HUD & controls ---------- */
+.hud { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.stat { display: flex; flex-direction: column; min-width: 120px; }
+.stat-label { font-size: 0.8rem; color: var(--muted); }
+.stat-value { font-family: var(--mono); font-size: 1.4rem; font-weight: 700; }
+.stat-value.won { color: var(--safe-ink); }
+.stat-value.lost { color: var(--mine-ink); }
+.hud .btn { margin-left: auto; }
+
+.settings, .toolbar, .options { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 12px; align-items: center; }
+.settings label { font-size: 0.9rem; color: var(--muted); }
+.settings input {
+  width: 4.5em; margin-left: 4px; padding: 4px 6px;
+  border: 1px solid var(--line); border-radius: 6px; font: inherit; background: #fff;
+}
+.options label { font-size: 0.9rem; }
+
+.btn {
+  font: inherit; font-weight: 600; padding: 8px 14px;
+  border: 1px solid var(--ink); border-radius: 8px;
+  background: #fff; color: var(--ink); cursor: pointer;
+}
+.btn:hover:not(:disabled) { background: #eaf0f8; }
+.btn.primary { background: var(--ink); color: #fff; }
+.btn.primary:hover:not(:disabled) { background: #26385c; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+:focus-visible { outline: 3px solid #2b6cde; outline-offset: 2px; }
+
+.message { min-height: 1.5em; margin: 12px 0 8px; }
+.message.error { color: var(--mine-ink); font-weight: 600; }
+
+/* ---------- board ---------- */
+.board-wrap { overflow-x: auto; padding: 4px 0 8px; }
+.board {
+  --cell: 36px;
+  display: grid;
+  width: max-content;
+  margin: 0 auto;
+  background: var(--line);
+  gap: 1px;
+  border: 3px solid var(--ink);
+  border-radius: 4px;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.cell {
+  width: var(--cell); height: var(--cell);
+  padding: 0; border: 0; border-radius: 0;
+  display: grid; place-items: center;
+  font-family: var(--mono); font-weight: 800;
+  font-size: calc(var(--cell) * 0.52); line-height: 1;
+  color: var(--ink);
+  cursor: pointer;
+  position: relative;
+}
+.cell.covered {
+  background: var(--covered);
+  box-shadow: inset 2px 2px 0 var(--covered-hi), inset -2px -2px 0 var(--covered-lo);
+}
+.cell.covered:hover { background: var(--covered-hover); }
+.cell.revealed { background: var(--revealed); cursor: default; }
+.cell.mine { background: #ffe3e3; cursor: default; }
+.cell.exploded { background: var(--mine); cursor: default; }
+.cell.wrong { background: #ffe3e3; text-decoration: line-through; cursor: default; }
+
+.n1 { color: #1d4fd8; } .n2 { color: #17803d; } .n3 { color: #c62828; }
+.n4 { color: #1b2a6b; } .n5 { color: #8a1c1c; } .n6 { color: #0f766e; }
+.n7 { color: #111827; } .n8 { color: #5b6475; }
+
+/* Solver marks. Each has a tint AND a glyph, so colour is never the only signal. */
+.cell.s-mine, .swatch.s-mine, .mini-cell.s-mine {
+  background: var(--mine-bg); color: var(--mine-ink); box-shadow: inset 0 0 0 2px var(--mine);
+}
+.cell.s-safe, .swatch.s-safe, .mini-cell.s-safe {
+  background: var(--safe-bg); color: var(--safe-ink); box-shadow: inset 0 0 0 2px var(--safe);
+}
+.cell.s-unknown, .swatch.s-unknown, .mini-cell.s-unknown {
+  background: var(--unk-bg); color: var(--unk-ink); box-shadow: inset 0 0 0 2px var(--unk);
+}
+
+/* Reasoning highlights: clues used in the proof, and the cell being explained. */
+.cell.hl-clue { box-shadow: inset 0 0 0 3px var(--ink); background: #dbe6f7; z-index: 1; }
+.cell.hl-target { outline: 3px dashed var(--ink); outline-offset: -3px; z-index: 2; }
+
+/* ---------- legend ---------- */
+.legend { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.9rem; }
+.legend li { display: flex; align-items: center; gap: 8px; }
+.swatch {
+  display: inline-grid; place-items: center;
+  width: 24px; height: 24px; font-family: var(--mono); font-weight: 800; border-radius: 3px;
+}
+
+/* ---------- side panels ---------- */
+.log { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; font-size: 0.9rem; }
+.log li { padding: 3px 0; border-bottom: 1px solid var(--line); }
+.muted { color: var(--muted); }
+
+.reason-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.reason-chip {
+  font: inherit; font-family: var(--mono); font-size: 0.8rem; padding: 3px 8px;
+  border-radius: 6px; border: 1px solid var(--ink); background: #fff; cursor: pointer;
+}
+.reason-chip[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.reason-chip.mine { border-color: var(--mine); }
+.reason-chip.safe { border-color: var(--safe); }
+.reason-text {
+  margin: 8px 0 0; padding: 10px; background: #fff; border: 1px solid var(--line);
+  border-radius: 6px; font-family: var(--mono); font-size: 0.8rem;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+/* ---------- explainer ---------- */
+.explainer { max-width: 1068px; margin: 4px auto 32px; }
+.explainer ol { padding-left: 1.3em; }
+.example { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 4px 16px 12px; max-width: 460px; }
+.mini { display: flex; gap: 6px; margin: 6px 0; }
+.mini-cell {
+  width: 40px; height: 40px; display: grid; place-items: center;
+  background: var(--covered); font-family: var(--mono); font-weight: 800; border-radius: 3px;
+}
+.mini-cell.clue { background: var(--revealed); box-shadow: inset 0 0 0 1px var(--line); color: #1d4fd8; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
