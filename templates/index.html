@@ -3,17 +3,46 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
   <title>Minesweeper - Logic-Based AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <header class="masthead">
-    <h1>MINESWEEPER</h1>
-    <p class="sub">Logic-Based AI</p>
+  <!-- Icon sprite: one consistent stroke-icon set, reused with <use> -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="i-logo" viewBox="0 0 24 24"><circle cx="11" cy="14" r="7"/><path d="m16 9 2-2M18 3v2M21 6h-2"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M3 6h9m4 0h5M3 12h3m4 0h11M3 18h11m4 0h3"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="18" r="2"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></symbol>
+  </svg>
+
+  <div class="progress" aria-hidden="true"></div>
+
+  <header class="app-header">
+    <div class="container header-inner">
+      <a class="brand" href="#play">
+        <span class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></span>
+        <span class="brand-text">
+          <h1>MINESWEEPER</h1>
+          <span class="sub">Logic-Based AI</span>
+        </span>
+      </a>
+      <nav class="nav" aria-label="Sections">
+        <a href="#play" class="nav-link" data-section="play" aria-current="true">Play</a>
+        <a href="#how" class="nav-link" data-section="how">How it thinks</a>
+      </nav>
+    </div>
   </header>
 
-  <main class="shell">
-    <section class="play" aria-label="Game">
+  <main class="container layout" id="play">
+    <section class="card play" aria-label="Game">
       <div class="hud">
         <div class="stat">
           <span class="stat-label">Mines remaining</span>
@@ -23,24 +52,21 @@
           <span class="stat-label">Game status</span>
           <span id="status" class="stat-value">Ready</span>
         </div>
-        <button id="new-game" type="button" class="btn primary">New game</button>
-      </div>
-
-      <div class="settings">
-        <label>Rows <input id="rows" type="number" min="{{ min_size }}" max="{{ max_size }}" value="9"></label>
-        <label>Columns <input id="cols" type="number" min="{{ min_size }}" max="{{ max_size }}" value="9"></label>
-        <label>Mines <input id="mines" type="number" min="1" value="10"></label>
+        <button id="new-game" type="button" class="btn btn-ghost hud-action">
+          <svg class="icon"><use href="#i-refresh"/></svg><span>New game</span>
+        </button>
       </div>
 
       <div class="toolbar">
-        <button id="analyze" type="button" class="btn">Analyze Board</button>
-        <button id="apply-safe" type="button" class="btn" disabled>Apply Safe Moves</button>
-        <button id="ai-move" type="button" class="btn">&#129302; AI MOVE</button>
-      </div>
-      <div class="options">
-        <label><input id="allow-guessing" type="checkbox"> Allow guessing</label>
-        <label><input id="show-reasoning" type="checkbox"> Show reasoning</label>
-        <label><input id="flag-mode" type="checkbox"> Flag mode (for touch screens)</label>
+        <button id="analyze" type="button" class="btn btn-primary">
+          <svg class="icon"><use href="#i-search"/></svg><span>Analyze Board</span>
+        </button>
+        <button id="apply-safe" type="button" class="btn btn-safe" disabled>
+          <svg class="icon"><use href="#i-check"/></svg><span>Apply Safe Moves</span>
+        </button>
+        <button id="ai-move" type="button" class="btn btn-violet">
+          <svg class="icon"><use href="#i-bot"/></svg><span>AI MOVE</span>
+        </button>
       </div>
 
       <p id="message" class="message" role="status" aria-live="polite">Click any cell to start. Right-click (or press F) to flag.</p>
@@ -57,36 +83,59 @@
     </section>
 
     <aside class="side">
-      <section id="reasoning-panel" class="panel" hidden>
-        <h2>Reasoning</h2>
+      <section class="card">
+        <h2 class="card-title"><svg class="icon"><use href="#i-sliders"/></svg>Settings</h2>
+        <div class="fields">
+          <label class="field"><span>Rows</span><input id="rows" type="number" min="{{ min_size }}" max="{{ max_size }}" value="9"></label>
+          <label class="field"><span>Columns</span><input id="cols" type="number" min="{{ min_size }}" max="{{ max_size }}" value="9"></label>
+          <label class="field"><span>Mines</span><input id="mines" type="number" min="1" value="10"></label>
+        </div>
+        <p class="hint">Applied when you start a new game.</p>
+        <div class="switches">
+          <label class="switch"><input id="allow-guessing" type="checkbox"><span class="track" aria-hidden="true"></span><span>Allow guessing</span></label>
+          <label class="switch"><input id="show-reasoning" type="checkbox"><span class="track" aria-hidden="true"></span><span>Show reasoning</span></label>
+          <label class="switch"><input id="flag-mode" type="checkbox"><span class="track" aria-hidden="true"></span><span>Flag mode (for touch screens)</span></label>
+        </div>
+      </section>
+
+      <section id="reasoning-panel" class="card glass" hidden>
+        <h2 class="card-title"><svg class="icon"><use href="#i-bulb"/></svg>Reasoning</h2>
         <div id="reasoning-body"></div>
       </section>
-      <section class="panel">
-        <h2>Activity</h2>
+
+      <section class="card">
+        <h2 class="card-title"><svg class="icon"><use href="#i-activity"/></svg>Activity</h2>
         <ul id="log" class="log"><li class="muted">Nothing yet.</li></ul>
       </section>
     </aside>
   </main>
 
-  <section class="explainer">
-    <h2>How the AI Thinks</h2>
-    <ol>
-      <li>Read revealed numbers</li>
-      <li>Convert them into logical constraints</li>
-      <li>Ask Z3 whether each hidden cell must be a mine</li>
-      <li>Ask Z3 whether each hidden cell must be safe</li>
-      <li>Mark cells as MINE, SAFE, or UNKNOWN</li>
-    </ol>
+  <section class="container how" id="how">
+    <div class="card how-card">
+      <h2 class="section-title">How the AI Thinks</h2>
+      <ol class="steps">
+        <li>Read revealed numbers</li>
+        <li>Convert them into logical constraints</li>
+        <li>Ask Z3 whether each hidden cell must be a mine</li>
+        <li>Ask Z3 whether each hidden cell must be safe</li>
+        <li>Mark cells as MINE, SAFE, or UNKNOWN</li>
+      </ol>
+      <p class="body-text">The agent does not guess. Each cell becomes a true/false variable, each number becomes a
+        constraint ("exactly 1 of these neighbours is a mine"), and Z3 uses <em>logical entailment</em>:
+        to prove C is a mine it assumes C is safe and shows that this contradicts the clues. If no
+        such contradiction appears in either direction, the cell stays UNKNOWN.</p>
+    </div>
 
-    <div class="example">
-      <p><strong>Example.</strong> Clue = 1</p>
+    <div class="card example">
+      <h3 class="card-title">Example</h3>
+      <p class="body-text"><strong>Clue = 1</strong></p>
       <div class="mini" aria-label="Clue 1 with neighbours A, B and C">
         <span class="mini-cell clue">1</span>
         <span class="mini-cell">A</span>
         <span class="mini-cell">B</span>
         <span class="mini-cell">C</span>
       </div>
-      <p>Neighbours: [A] [B] [C]. If A and B are known SAFE, then C must be a MINE.</p>
+      <p class="body-text">Neighbours: [A] [B] [C]. If A and B are known SAFE, then C must be a MINE.</p>
       <div class="mini" aria-label="Result: A and B safe, C mine">
         <span class="mini-cell clue">1</span>
         <span class="mini-cell s-safe">&#10003;</span>
@@ -94,11 +143,6 @@
         <span class="mini-cell s-mine">&#10005;</span>
       </div>
     </div>
-
-    <p>The agent does not guess. Each cell becomes a true/false variable, each number becomes a
-      constraint ("exactly 1 of these neighbours is a mine"), and Z3 uses <em>logical entailment</em>:
-      to prove C is a mine it assumes C is safe and shows that this contradicts the clues. If no
-      such contradiction appears in either direction, the cell stays UNKNOWN.</p>
   </section>
 
   <script src="{{ url_for('static', filename='script.js') }}"></script>

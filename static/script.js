@@ -80,7 +80,7 @@ function afterMove(newState) {
   state = newState;
   solver = null;       // old solver marks are stale once the board changes
   reasonKey = null;
-  if (state.status === "won") setMessage("You win! Every safe cell is revealed.");
+  if (state.status === "won") setMessage("You win! Every safe cell is revealed.", "success");
   else if (state.status === "lost") setMessage("GAME OVER. You hit a mine.", "error");
   else setMessage("");
   render();
@@ -142,7 +142,7 @@ function applySafeMoves() {
     }
     addLog([`Applied ${count} proved-safe move(s).`]);
     afterMove(state);
-    if (!isOver()) setMessage(`Applied ${count} safe move(s). Click Analyze Board again for fresh results.`);
+    if (!isOver()) setMessage(`Applied ${count} safe move(s). Click Analyze Board again for fresh results.`, "success");
   });
 }
 
@@ -199,7 +199,7 @@ function buildCell(r, c, cell) {
   if (entry && (cell.state === "hidden" || cell.state === "flagged")) {
     b.classList.add("s-" + entry.status.toLowerCase());
     if (cell.state === "hidden") text = GLYPH[entry.status];
-    b.title = TIP[entry.status];
+    b.dataset.tip = TIP[entry.status];   // shown by the CSS tooltip
     label += `, ${TIP[entry.status]}`;
   }
   b.textContent = text;
@@ -244,6 +244,7 @@ function cellSize(cols) {
 }
 
 function updateControls() {
+  document.body.classList.toggle("is-busy", busy);   // drives the loading bar
   const over = !state || isOver();
   $("new-game").disabled = busy;
   $("analyze").disabled = busy || over;
@@ -369,3 +370,16 @@ window.addEventListener("resize", () => {
 });
 
 newGame();
+
+// ---- nav: highlight the section currently in view ---------------------------------
+(function navHighlight() {
+  const links = [...document.querySelectorAll(".nav-link")];
+  if (!("IntersectionObserver" in window)) return;
+  const obs = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      links.forEach((a) => a.setAttribute("aria-current", String(a.dataset.section === e.target.id)));
+    }
+  }, { rootMargin: "-40% 0px -55% 0px" });
+  for (const a of links) { const t = document.getElementById(a.dataset.section); if (t) obs.observe(t); }
+})();
